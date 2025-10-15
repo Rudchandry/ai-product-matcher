@@ -1,86 +1,109 @@
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from http.server import BaseHTTPRequestHandler
 import json
+import urllib.parse
 
-# Create a very simple FastAPI app for testing
-app = FastAPI(title="AI Product Matcher")
-
-@app.get("/")
-async def root():
-    return {
-        "message": "AI Product Matcher API - Simple Version",
-        "version": "2.1",
-        "deployment": "vercel", 
-        "status": "running"
-    }
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "service": "ai-product-matcher-simple"}
-
-@app.get("/test")
-async def test():
-    return {"test": "success", "dependencies": "minimal"}
-
-# Simple product matching without external dependencies
-@app.post("/match-simple")
-async def simple_match(data: dict):
-    search = data.get("search", "").lower()
-    products = data.get("products", [])
-    
-    matches = []
-    for product in products:
-        # Simple string matching
-        if search in product.lower():
-            score = 0.9 if search == product.lower() else 0.7
-            matches.append({
-                "product": product,
-                "score": score,
-                "type": "simple_match"
-            })
-    
-    return {
-        "search": search,
-        "matches": matches[:5],  # Top 5
-        "total": len(matches)
-    }
-
-# Create the handler function for Vercel
-def handler(request):
-    import asyncio
-    from fastapi.testclient import TestClient
-    
-    try:
-        # Use TestClient for synchronous handling
-        client = TestClient(app)
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Parse the path
+        path = self.path
         
-        # Extract request details
-        path = request.get('rawPath', '/')
-        method = request.get('httpMethod', 'GET')
-        
-        if method == 'GET':
-            response = client.get(path)
-        elif method == 'POST':
-            body = request.get('body', '{}')
-            if isinstance(body, str):
-                try:
-                    json_body = json.loads(body)
-                except:
-                    json_body = {}
+        try:
+            if path == "/" or path == "":
+                response_data = {
+                    "message": "AI Product Matcher API - Basic Version",
+                    "version": "2.2",
+                    "deployment": "vercel",
+                    "status": "running",
+                    "method": "BaseHTTPRequestHandler"
+                }
+            elif path == "/health":
+                response_data = {
+                    "status": "healthy", 
+                    "service": "ai-product-matcher-basic"
+                }
+            elif path == "/test":
+                response_data = {
+                    "test": "success", 
+                    "handler": "BaseHTTPRequestHandler",
+                    "path": path
+                }
             else:
-                json_body = body or {}
-            response = client.post(path, json=json_body)
-        else:
-            response = client.get('/')  # Fallback
-        
-        return {
-            "statusCode": response.status_code,
-            "headers": {"Content-Type": "application/json"},
-            "body": response.text
-        }
-    except Exception as e:
-        return {
-            "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"error": str(e), "type": "handler_error"})
-        }
+                response_data = {
+                    "error": "Not found",
+                    "path": path,
+                    "available_paths": ["/", "/health", "/test"]
+                }
+            
+            # Send response
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            response_json = json.dumps(response_data)
+            self.wfile.write(response_json.encode())
+            
+        except Exception as e:
+            # Error handling
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            error_response = {
+                "error": str(e),
+                "type": "handler_exception",
+                "path": path
+            }
+            self.wfile.write(json.dumps(error_response).encode())
+    
+    def do_POST(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            
+            if post_data:
+                try:
+                    data = json.loads(post_data.decode())
+                except:
+                    data = {}
+            else:
+                data = {}
+            
+            # Simple matching logic
+            search = data.get("search", "").lower()
+            products = data.get("products", ["Dell Laptop", "HP Printer", "Cisco Router"])
+            
+            matches = []
+            for product in products:
+                if search in product.lower():
+                    score = 0.9 if search == product.lower() else 0.7
+                    matches.append({
+                        "product": product,
+                        "score": score,
+                        "type": "basic_match"
+                    })
+            
+            response_data = {
+                "search": search,
+                "matches": matches[:5],
+                "total": len(matches),
+                "handler": "BaseHTTPRequestHandler"
+            }
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            self.wfile.write(json.dumps(response_data).encode())
+            
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            error_response = {
+                "error": str(e),
+                "type": "post_handler_exception"
+            }
+            self.wfile.write(json.dumps(error_response).encode())
