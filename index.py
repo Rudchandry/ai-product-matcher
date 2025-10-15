@@ -89,16 +89,26 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(str(e), "post_handler_error")
     
     def handle_match_request(self, data):
-        """AI-powered product matching"""
-        search_product = data.get("search_product", "").strip()
-        product_catalog = data.get("product_catalog", [])
-        max_results = data.get("max_results", 5)
+        """AI-powered product matching - supports multiple input formats"""
         
-        if not search_product:
-            return {"error": "search_product is required", "code": 400}
+        # Support both formats:
+        # Format 1: {"search_product": "...", "product_catalog": [...]}
+        # Format 2: {"left": [...], "right": [...], "use_ai": "True", "threshold": 0.3}
         
-        if not product_catalog:
-            return {"error": "product_catalog cannot be empty", "code": 400}
+        if "left" in data and "right" in data:
+            # Format 2: Cross-matching between two arrays
+            return self.handle_cross_array_matching(data)
+        else:
+            # Format 1: Traditional single search
+            search_product = data.get("search_product", "").strip()
+            product_catalog = data.get("product_catalog", [])
+            max_results = data.get("max_results", 5)
+            
+            if not search_product:
+                return {"error": "search_product is required (or use 'left' and 'right' arrays)", "code": 400}
+            
+            if not product_catalog:
+                return {"error": "product_catalog cannot be empty (or use 'left' and 'right' arrays)", "code": 400}
         
         matches = []
         for product in product_catalog:
@@ -128,6 +138,74 @@ class handler(BaseHTTPRequestHandler):
             "search_product": search_product,
             "matches": top_matches,
             "total_matches": len(matches),
+            "api": "ai-product-matcher",
+            "deployment": "vercel"
+        }
+    
+    def handle_cross_array_matching(self, data):
+        """Handle cross-matching between left and right arrays"""
+        left_array = data.get("left", [])
+        right_array = data.get("right", [])
+        use_ai = data.get("use_ai", "True").lower() == "true"
+        threshold = float(data.get("threshold", 0.3))
+        
+        if not left_array:
+            return {"error": "left array cannot be empty", "code": 400}
+        
+        if not right_array:
+            return {"error": "right array cannot be empty", "code": 400}
+        
+        all_matches = []
+        
+        # For each item in left array, find best matches in right array
+        for left_item in left_array:
+            if not left_item or not left_item.strip():
+                continue
+                
+            item_matches = []
+            for right_item in right_array:
+                if not right_item or not right_item.strip():
+                    continue
+                    
+                similarity_score = self.calculate_similarity(left_item.lower(), right_item.lower())
+                
+                # Only include matches above threshold
+                if similarity_score >= threshold:
+                    if similarity_score >= 0.8:
+                        match_type = "high"
+                    elif similarity_score >= 0.6:
+                        match_type = "medium"
+                    else:
+                        match_type = "low"
+                    
+                    item_matches.append({
+                        "right_product": right_item,
+                        "similarity_score": round(similarity_score, 4),
+                        "match_type": match_type
+                    })
+            
+            # Sort matches for this left item by score
+            item_matches.sort(key=lambda x: x["similarity_score"], reverse=True)
+            
+            if item_matches:  # Only add if there are matches above threshold
+                all_matches.append({
+                    "left_product": left_item,
+                    "matches": item_matches,
+                    "best_match_score": item_matches[0]["similarity_score"] if item_matches else 0,
+                    "total_matches": len(item_matches)
+                })
+        
+        # Sort by best match score
+        all_matches.sort(key=lambda x: x["best_match_score"], reverse=True)
+        
+        return {
+            "matching_type": "cross_array",
+            "left_array_size": len(left_array),
+            "right_array_size": len(right_array),
+            "threshold_used": threshold,
+            "use_ai": use_ai,
+            "results": all_matches,
+            "total_left_items_with_matches": len(all_matches),
             "api": "ai-product-matcher",
             "deployment": "vercel"
         }
