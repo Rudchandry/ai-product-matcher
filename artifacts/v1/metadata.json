@@ -1,0 +1,33 @@
+{
+  "csv": "data/pairs.csv",
+  "version": "v1",
+  "val_size": 0.2,
+  "calibration": "isotonic",
+  "balanced": true,
+  "random_state": 42,
+  "label_col": "label",
+  "text_cols": [
+    "text_a",
+    "text_b"
+  ],
+  "classes": [
+    "Match",
+    "No match"
+  ],
+  "metrics": {
+    "accuracy": 1.0,
+    "f1_weighted": 1.0,
+    "precision_weighted": 1.0,
+    "recall_weighted": 1.0,
+    "confusion_matrix": [
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ]
+    ]
+  }
+}

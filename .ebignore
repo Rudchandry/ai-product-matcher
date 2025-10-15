@@ -1,0 +1,31 @@
+# Exclude local envs, caches, logs, and large/unneeded files from EB app bundle
+.venv/
+**/__pycache__/
+.pytest_cache/
+*.log
+.DS_Store
+.vscode/
+.idea/
+.git/
+
+# EB internal files except config
+.elasticbeanstalk/**
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+# Data, tests, tools, and notebooks not needed at runtime
+/data/**
+/tests/**
+/tools/**
+/notebooks/**
+
+# Artifacts and models (exclude by default to keep bundle small)
+/artifacts/**
+
+# Other large or transient
+*.ipynb_checkpoints
+*.zip
+*.7z
+*.tar
+*.tar.gz
+appZip.zip
