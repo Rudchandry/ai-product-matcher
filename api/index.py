@@ -1,8 +1,10 @@
+import sys
+import os
+
+# Add the parent directory to Python path to import main
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 from main import app
 
-# Vercel entry point
-def handler(request):
-    return app(request)
-
-# Alternative handler
-application = app
+# Export the app for Vercel
+handler = app
