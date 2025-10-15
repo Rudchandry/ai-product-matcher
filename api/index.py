@@ -11,10 +11,12 @@ class handler(BaseHTTPRequestHandler):
             if path == "/" or path == "":
                 response_data = {
                     "message": "AI Product Matcher API - Basic Version",
-                    "version": "2.2",
+                    "version": "2.3",
                     "deployment": "vercel",
                     "status": "running",
-                    "method": "BaseHTTPRequestHandler"
+                    "method": "BaseHTTPRequestHandler",
+                    "commit": "691035a",
+                    "config": "no_vercel_json"
                 }
             elif path == "/health":
                 response_data = {
