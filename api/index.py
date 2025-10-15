@@ -1,111 +1,102 @@
-from http.server import BaseHTTPRequestHandler
 import json
-import urllib.parse
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # Parse the path
-        path = self.path
+def handler(request, context):
+    """
+    Simple Vercel serverless function handler
+    """
+    try:
+        # Get request method and path
+        method = request.get('httpMethod', 'GET')
+        path = request.get('path', '/')
         
-        try:
-            if path == "/" or path == "":
+        if method == 'GET':
+            if path == '/' or path == '':
                 response_data = {
-                    "message": "AI Product Matcher API - Basic Version",
-                    "version": "2.3",
+                    "message": "AI Product Matcher API - Simple Function",
+                    "version": "2.4",
                     "deployment": "vercel",
-                    "status": "running",
-                    "method": "BaseHTTPRequestHandler",
-                    "commit": "691035a",
-                    "config": "no_vercel_json"
-                }
-            elif path == "/health":
-                response_data = {
-                    "status": "healthy", 
-                    "service": "ai-product-matcher-basic"
-                }
-            elif path == "/test":
-                response_data = {
-                    "test": "success", 
-                    "handler": "BaseHTTPRequestHandler",
+                    "status": "working",
+                    "handler": "simple_function",
+                    "method": method,
                     "path": path
+                }
+            elif path == '/health':
+                response_data = {
+                    "status": "healthy",
+                    "service": "ai-product-matcher-simple"
+                }
+            elif path == '/test':
+                response_data = {
+                    "test": "success",
+                    "handler": "simple_function",
+                    "request_keys": list(request.keys())
                 }
             else:
                 response_data = {
                     "error": "Not found",
                     "path": path,
-                    "available_paths": ["/", "/health", "/test"]
+                    "available": ["/", "/health", "/test"]
                 }
-            
-            # Send response
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            response_json = json.dumps(response_data)
-            self.wfile.write(response_json.encode())
-            
-        except Exception as e:
-            # Error handling
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            
-            error_response = {
-                "error": str(e),
-                "type": "handler_exception",
-                "path": path
-            }
-            self.wfile.write(json.dumps(error_response).encode())
-    
-    def do_POST(self):
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length)
-            
-            if post_data:
-                try:
-                    data = json.loads(post_data.decode())
-                except:
-                    data = {}
-            else:
+        
+        elif method == 'POST':
+            # Handle POST requests
+            body = request.get('body', '{}')
+            try:
+                if isinstance(body, str):
+                    data = json.loads(body)
+                else:
+                    data = body or {}
+            except:
                 data = {}
             
-            # Simple matching logic
             search = data.get("search", "").lower()
             products = data.get("products", ["Dell Laptop", "HP Printer", "Cisco Router"])
             
             matches = []
             for product in products:
-                if search in product.lower():
+                if search and search in product.lower():
                     score = 0.9 if search == product.lower() else 0.7
                     matches.append({
                         "product": product,
                         "score": score,
-                        "type": "basic_match"
+                        "type": "simple_match"
                     })
             
             response_data = {
                 "search": search,
                 "matches": matches[:5],
                 "total": len(matches),
-                "handler": "BaseHTTPRequestHandler"
+                "handler": "simple_function"
             }
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            self.wfile.write(json.dumps(response_data).encode())
-            
-        except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            
-            error_response = {
+        
+        else:
+            response_data = {
+                "error": "Method not allowed",
+                "method": method,
+                "allowed": ["GET", "POST"]
+            }
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            },
+            'body': json.dumps(response_data)
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
                 "error": str(e),
-                "type": "post_handler_exception"
-            }
-            self.wfile.write(json.dumps(error_response).encode())
+                "type": "function_exception",
+                "handler": "simple_function"
+            })
+        }
